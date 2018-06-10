@@ -3,17 +3,18 @@ import matplotlib.image as mpimg
 import os
 import numpy as np
 
-BATCH_SIZE = 1
-DIM = 256
-TRAINING_EPOCHS = 10
-LEARNING_RATE = 0.01
+BATCH_SIZE = 200
+DIM = 128
+TRAINING_EPOCHS = 100
+LEARNING_RATE = 0.001
 
-mypath = '/Users/zhangjunwei/Downloads/AerialImageDataset/'
+mypath = 'E:\\AerialImageDataset\\'
+para = mypath + 'para\\'
 
 class DataGenerator:
     def __init__(self, path):
-        self.img_path = path + 'train_small/images/'
-        self.gt_path = path + 'train_small/gt/'
+        self.img_path = path + 'train_small\\images\\'
+        self.gt_path = path + 'train_small\\gt\\'
         self.names = os.listdir(self.gt_path)
         self.num_images = len(self.names)
         np.random.shuffle(self.names)
@@ -22,14 +23,16 @@ class DataGenerator:
     def make_batch(self, batch_size):
         train_to = min(self.cur_idx + batch_size, self.num_images)
         real_batch_size = train_to - self.cur_idx
-        train_x = np.zeros((real_batch_size, DIM, DIM, 3))
-        train_y = np.zeros((real_batch_size, DIM, DIM))
+        train_x = np.zeros((real_batch_size, DIM, DIM, 3), dtype=np.float32)
+        train_y = np.zeros((real_batch_size, DIM, DIM, 1), dtype=np.float32)
 
         for i in range(real_batch_size):
             img = mpimg.imread(self.img_path + self.names[self.cur_idx])
             gt = mpimg.imread(self.gt_path + self.names[self.cur_idx])
-            train_x[i, :, :, :] = img
-            train_y[i, :, :] = gt
+
+            # DO NOT forget to rescale the amplitude to be in [0,1]
+            train_x[i, :, :, :] = img / 255
+            train_y[i, :, :, 0] = gt / 255
             self.cur_idx += 1
 
         return train_x, train_y
@@ -56,11 +59,11 @@ def deconv_layer(inputs, kernel_size, output_shape, strides, padding, name):
 def identity(x):
     return x
 
-img = tf.placeholder(dtype=tf.float32, shape=[None,DIM,DIM,3], name="inputs") # Batch * 256 * 256 * 3
+img = tf.placeholder(dtype=tf.float32, shape=[None,DIM,DIM,3], name="inputs") # Batch * 128 * 128 * 3
 y_true = tf.placeholder(dtype=tf.float32, shape=[None,DIM,DIM,1], name="labels")
 
-k1, b1, h1 = conv_layer(img, [3,3,3,32], [1,1,1,1], 'SAME', tf.nn.relu, 'conv1') # Batch * 256 * 256 * 32
-k2, b2, h2 = conv_layer(h1, [3,3,32,32], [1,1,1,1], 'SAME', tf.nn.relu, 'conv2') # Batch * 256 * 256 * 32
+k1, b1, h1 = conv_layer(img, [3,3,3,32], [1,1,1,1], 'SAME', tf.nn.relu, 'conv1') # Batch * 128 * 128 * 32
+k2, b2, h2 = conv_layer(h1, [3,3,32,32], [1,1,1,1], 'SAME', tf.nn.relu, 'conv2') # Batch * 128 * 128 * 32
 p1 = tf.nn.max_pool(h2, ksize=[1,2,2,1], strides=[1,2,2,1], padding='SAME', name="pool1") # Batch * 128 * 128 * 32
 
 k3, b3, h3 = conv_layer(p1, [3,3,32,64], [1,1,1,1], 'SAME', tf.nn.relu, 'conv3') # Batch * 128 * 128 * 64
@@ -75,8 +78,8 @@ k7, b7, h7 = conv_layer(p3, [5,5,128,1024], [1,1,1,1], 'SAME', tf.nn.relu, 'conv
 
 k8, b8, h8 = conv_layer(h7, [1,1,1024,128], [1,1,1,1], 'SAME', identity, 'conv8') # Batch * 32 * 32 * 128
 
-k9, h9 = deconv_layer(h8, [16,16,1,128], tf.shape(y_true), [1,8,8,1], 'SAME', 'deconv2') # Batch * 256 * 256 * 1
-# k9, h9 = deconv_layer(h8, [16,16,1,128], [BATCH_SIZE,256,256,1], [1,8,8,1], 'SAME', 'deconv2') # Batch * 256 * 256 * 1
+k9, h9 = deconv_layer(h8, [16,16,1,128], tf.shape(y_true), [1,8,8,1], 'SAME', 'deconv') # Batch * 128 * 128 * 1
+# k9, h9 = deconv_layer(h8, [16,16,1,128], [BATCH_SIZE,128,128,1], [1,8,8,1], 'SAME', 'deconv2') # Batch * 128 * 128 * 1
 
 cross_entropy = tf.nn.sigmoid_cross_entropy_with_logits(labels=y_true, logits=h9)
 loss = tf.reduce_mean(cross_entropy)
@@ -96,17 +99,12 @@ def main():
             while dg.has_data():
                 batch_num += 1
                 train_x, train_y = dg.make_batch(BATCH_SIZE)
-                train_x = train_x / 255
-                train_y = train_y.reshape([-1,DIM,DIM,1])
                 fd = {img: train_x, y_true: train_y}
-                print(dg.names[0])
-                for i in range(200):
-                    _, loss_ = sess.run([train_op, loss], feed_dict=fd)
-                    print('Epoch %d/%d: %d batch(s) (%d/%d training images) have been trained, loss is %f'\
+                _, loss_ = sess.run([train_op, loss], feed_dict=fd)
+                print('Epoch %d/%d: %d batch(s) (%d/%d training images) have been trained, loss is %f'\
                         % (epoch+1, TRAINING_EPOCHS, batch_num, dg.cur_idx, dg.num_images, loss_))
-                saver.save(sess, mypath + 'save2')
             dg.reset()
-            saver.save(sess, mypath + 'save2')
+            saver.save(sess, para + 'save1')
 
 if __name__ == '__main__':
     main()
