@@ -3,7 +3,7 @@ import matplotlib.image as mpimg
 import os
 import numpy as np
 
-BATCH_SIZE = 200
+BATCH_SIZE = 100
 DIM = 128
 TRAINING_EPOCHS = 100
 LEARNING_RATE = 0.001
@@ -93,8 +93,9 @@ def main():
     saver = tf.train.Saver()
 
     with tf.Session() as sess:
-        sess.run(tf.global_variables_initializer())
-        for epoch in range(TRAINING_EPOCHS):
+        # sess.run(tf.global_variables_initializer())
+        saver.restore(sess, para + 'save1')
+        for epoch in range(5, TRAINING_EPOCHS):
             batch_num = 0
             while dg.has_data():
                 batch_num += 1
