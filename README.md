@@ -1,2 +1,11 @@
 # Image_Segmentation
-机器学习概论期末大作业 + 电磁大数据期末大作业
+
+This is the final project for course "Introduction to Machine Learning" at Peking University.
+
+Training and test images are obtained from [here](https://project.inria.fr/aerialimagelabeling/), which includes:
+
+  (1) 180 5000 * 5000 * 3 labelled training satellite images, and
+  
+  (2) 180 5000 * 5000 * 3 unlabelled test satellite images.
+
+Details about our model, as well as training and testing processes, can be found in "Final_Presentation" file and "mycode" folder.
