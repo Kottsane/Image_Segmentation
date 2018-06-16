@@ -1,3 +1,8 @@
+# INFERENCE STEP
+# This python file takes each 128*128*3 small images in the "tests_img" folder as inputs, generates
+# inference gray map with respect to each input image, and saves outputs in the "tests_pred" folder. 
+
+
 import tensorflow as tf
 import matplotlib.image as mpimg
 import os
@@ -5,13 +10,20 @@ import numpy as np
 from PIL import Image
 
 DIM = 128
+NUM = 5
 
-mypath = 'E:\\AerialImageDataset\\'
-para = mypath + 'para\\'
+mypath = '/Users/zhangjunwei/Downloads/AerialImageDataset/'
+para = mypath + 'para/'
 
-tests_pred = mypath + 'test_small\\predict\\'
-#tests_img = mypath + '/test_small/images/'
-tests_img = mypath + 'train_small\\images\\'
+tests_pred = mypath + 'test_small_eg/predict_eg_%d/' % NUM
+#tests_pred = mypath + 'temp/'
+tests_img = mypath + '/test_small_eg/images_eg_%d/' % NUM
+#tests_img = mypath + 'train_small/images/'
+
+def judge(img, thres):
+    # input an image with entries ranging from 0 to 255, and output judged image with respect to threshold
+    img = np.uint8(np.where(img > thres, 255, 0))
+    return img
 
 def conv_layer(inputs, kernel_size, strides, padding, activation, name):
     kernel = tf.get_variable(name + "_k", initializer=tf.truncated_normal(shape=kernel_size, stddev=0.1))
@@ -55,22 +67,23 @@ z = tf.nn.sigmoid(h9)
 
 def main():
     saver = tf.train.Saver()
-    names = ['austin1_174','chicago26_290','kitsap11_99', 'kitsap26_373', 'tyrol-w25_260', 'tyrol-w31_22', 'tyrol-w32_31']
+
+    #names = ['bellingham1_154.tif']
     
     with tf.Session() as sess:
-        saver.restore(sess, para + 'save1')
-        #names = os.listdir(tests_img)
-        #np.random.shuffle(names)
+        saver.restore(sess, para + 'save2')
+        names = os.listdir(tests_img)
         test_x = np.zeros([1,128,128,3])
         for name in names:
-            print("Reading image...")
-            image = mpimg.imread(tests_img + name + '.tif')
+            #print("Reading image...")
+            image = mpimg.imread(tests_img + name)
             test_x[0, :, :, :] = image / 255
             pred = sess.run(z, feed_dict={img: test_x})
             pred *= 255
+            pred = judge(pred, 127)
             pred = Image.fromarray(pred)
-            pred.save(tests_pred + name + '_2.tif')
-            print("Image saved.")
+            pred.save(tests_pred + name)
+            #print("Image saved.")
 
 
 if __name__ == '__main__':
